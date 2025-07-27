@@ -17,7 +17,6 @@ Here are some pictures of the completed project, from the circuit construction t
 
 This system eliminates the need for physical switches by using computer vision to recognize hand gestures. It can:
 * Turn a light ON or OFF.
-* (Optional Feature, add if you did this) Adjust the brightness of the light.
 * Provide real-time feedback based on the gesture it recognizes.
 
 ---
