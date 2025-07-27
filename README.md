@@ -83,7 +83,7 @@ Project Status: **Completed**
 ---
 
 ## 👤 Contact
-Created by **[Your Name]**
+Created by **SASEYI TOBI**
 
-* **LinkedIn:** [https://www.linkedin.com/in/your-profile-url/](https://www.linkedin.com/in/your-profile-url/)
-* **GitHub:** [@YourUsername](https://github.com/YourUsername)
+* **LinkedIn:** [https://www.linkedin.com/in/your-profile-url/](www.linkedin.com/in/saseyi-tobi-5a3a28304)
+* **GitHub:** [@YourUsername](https://github.com/SaseyiTobi)
