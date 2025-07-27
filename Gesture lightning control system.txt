@@ -1,0 +1,281 @@
+#include <LiquidCrystal_I2C.h>
+#include <RevEng_PAJ7620.h>
+#include <Wire.h>
+
+// Create the gesture sensor object
+RevEng_PAJ7620 sensor = RevEng_PAJ7620();
+
+// Create LCD object (address 0x27, 16 cols, 2 rows)
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Current light number (1-4)
+int currentLight = 1;
+
+// Light status (true = ON, false = OFF)
+bool lightStatus = false;
+
+// Relay pins for 4-channel relay module (changed for Arduino Nano)
+const int relayPins[4] = {7, 8, 9, 10}; // Changed from {29, 28, 27, 26}
+
+// Custom characters for triangles
+byte leftTriangle[8] = {
+  0b00000,
+  0b00001,
+  0b00011,
+  0b00111,
+  0b01111,
+  0b00111,
+  0b00011,
+  0b00001
+};
+
+byte rightTriangle[8] = {
+  0b00000,
+  0b10000,
+  0b11000,
+  0b11100,
+  0b11110,
+  0b11100,
+  0b11000,
+  0b10000
+};
+
+void setup() {
+  Serial.begin(9600);
+  
+  // Wait for Serial to initialize
+  while (!Serial) {
+    delay(10);
+  }
+  
+  // Initialize I2C
+  Wire.begin();
+  
+  // Initialize relay pins as outputs
+  for(int i = 0; i < 4; i++) {
+    pinMode(relayPins[i], OUTPUT);
+    digitalWrite(relayPins[i], HIGH); // Turn off relay (assuming active LOW relay)
+  }
+  
+  // Initialize LCD
+  lcd.init();
+  lcd.backlight();
+  
+  // Create custom characters
+  lcd.createChar(0, leftTriangle);
+  lcd.createChar(1, rightTriangle);
+  
+  // Display initial message
+  lcd.setCursor(0, 0);
+  lcd.print("GESTURE CONTROL");
+  lcd.setCursor(0, 1);
+  lcd.print("    SYSTEM     ");
+  delay(2000); // Show for 2 seconds
+  
+  // Clear screen
+  lcd.clear();
+  
+  // Initialize the PAJ7620 gesture sensor
+  Serial.println("PAJ7620 Gesture Sensor with LCD Display");
+  Serial.println("========================================================");
+  
+  // Initialize the sensor with proper error handling
+  if (sensor.begin()) {
+    Serial.println("✓ PAJ7620 sensor detected and initialized successfully!");
+    Serial.println("\nSensor is ready for gesture detection.");
+    Serial.println("Gestures:");
+    Serial.println("- UP: Turn current light ON");
+    Serial.println("- DOWN: Turn current light OFF");
+    Serial.println("- LEFT: Cycle to next light (increases number)");
+    Serial.println("- RIGHT: Cycle to previous light (decreases number)");
+    Serial.println("- CLOCKWISE: Turn ALL lights ON");
+    Serial.println("- WAVE: Turn ALL lights OFF");
+    Serial.println("========================================================");
+    
+    // Display initial light state
+    updateLightDisplay();
+  } else {
+    Serial.println("✗ PAJ7620 sensor NOT detected!");
+    Serial.println("\nTroubleshooting:");
+    Serial.println("1. Check wiring connections:");
+    Serial.println("   VCC → 3.3V or 5V");
+    Serial.println("   GND → GND");
+    Serial.println("   SDA → SDA (A4 on Nano)");
+    Serial.println("   SCL → SCL (A5 on Nano)");
+    Serial.println("2. Ensure sensor is powered correctly");
+    Serial.println("3. Try adding 4.7kΩ pull-up resistors on SDA and SCL");
+    Serial.println("4. Check if sensor address is 0x73");
+    
+    // Display error on LCD
+    lcd.setCursor(0, 0);
+    lcd.print("SENSOR ERROR");
+    lcd.setCursor(0, 1);
+    lcd.print("CHECK WIRING");
+    
+    // Keep trying to initialize
+    Serial.println("\nContinuously trying to initialize sensor...");
+    while (!sensor.begin()) {
+      Serial.println("Still searching for sensor...");
+      delay(2000);
+    }
+    
+    Serial.println("✓ Sensor found! Continuing...");
+    lcd.clear();
+    updateLightDisplay();
+  }
+}
+
+void updateLightDisplay() {
+  // Display first row: ◄ LIGHT X ► (centered)
+  lcd.setCursor(0, 0);
+  lcd.print("  "); // 2 spaces for centering
+  lcd.write(0); // Left triangle
+  lcd.print(" LIGHT ");
+  lcd.print(currentLight);
+  lcd.print(" ");
+  lcd.write(1); // Right triangle
+  
+  // Display second row: Light status centered
+  lcd.setCursor(0, 1);
+  if(lightStatus) {
+    lcd.print("      ON       ");
+  } else {
+    lcd.print("      OFF      ");
+  }
+}
+
+void cycleRight() {
+  currentLight++;
+  if(currentLight > 4) {
+    currentLight = 1;
+  }
+  // Update light status based on current relay state
+  lightStatus = (digitalRead(relayPins[currentLight - 1]) == LOW);
+  updateLightDisplay();
+  Serial.print("Left gesture - Changed to LIGHT ");
+  Serial.println(currentLight);
+}
+
+void cycleLeft() {
+  currentLight--;
+  if(currentLight < 1) {
+    currentLight = 4;
+  }
+  // Update light status based on current relay state
+  lightStatus = (digitalRead(relayPins[currentLight - 1]) == LOW);
+  updateLightDisplay();
+  Serial.print("Right gesture - Changed to LIGHT ");
+  Serial.println(currentLight);
+}
+
+void turnLightOn() {
+  lightStatus = true;
+  digitalWrite(relayPins[currentLight - 1], LOW); // Turn on relay (active LOW)
+  updateLightDisplay();
+  Serial.print("Up gesture - LIGHT ");
+  Serial.print(currentLight);
+  Serial.println(" turned ON");
+}
+
+void turnLightOff() {
+  lightStatus = false;
+  digitalWrite(relayPins[currentLight - 1], HIGH); // Turn off relay (active LOW)
+  updateLightDisplay();
+  Serial.print("Down gesture - LIGHT ");
+  Serial.print(currentLight);
+  Serial.println(" turned OFF");
+}
+
+void turnAllLightsOn() {
+  // Turn on all relays
+  for(int i = 0; i < 4; i++) {
+    digitalWrite(relayPins[i], LOW); // Turn on relay (active LOW)
+  }
+  // Update current light status
+  lightStatus = true;
+  updateLightDisplay();
+  Serial.println("Clockwise gesture - ALL LIGHTS turned ON");
+}
+
+void turnAllLightsOff() {
+  // Turn off all relays
+  for(int i = 0; i < 4; i++) {
+    digitalWrite(relayPins[i], HIGH); // Turn off relay (active LOW)
+  }
+  // Update current light status
+  lightStatus = false;
+  updateLightDisplay();
+  Serial.println("Wave gesture - ALL LIGHTS turned OFF");
+}
+
+void loop() {
+  // Read gesture from sensor
+  Gesture gesture = sensor.readGesture();
+  
+  // Check if any gesture was detected
+  if (gesture != GES_NONE) {
+    // Print timestamp for debugging
+    Serial.print("[");
+    Serial.print(millis());
+    Serial.print("ms] ");
+    
+    switch(gesture) {
+      case GES_UP:
+        Serial.print("Gesture detected: UP ↑ - ");
+        turnLightOn();
+        delay(500); // Prevent multiple triggers
+        break;
+        
+      case GES_DOWN:
+        Serial.print("Gesture detected: DOWN ↓ - ");
+        turnLightOff();
+        delay(500); // Prevent multiple triggers
+        break;
+        
+      case GES_LEFT:
+        Serial.print("Gesture detected: LEFT ← - ");
+        cycleRight(); // Left gesture cycles right (increases light number)
+        delay(500); // Prevent multiple triggers
+        break;
+        
+      case GES_RIGHT:
+        Serial.print("Gesture detected: RIGHT → - ");
+        cycleLeft(); // Right gesture cycles left (decreases light number)
+        delay(500); // Prevent multiple triggers
+        break;
+        
+      case GES_FORWARD:
+        Serial.println("Gesture detected: FORWARD (toward sensor)");
+        break;
+        
+      case GES_BACKWARD:
+        Serial.println("Gesture detected: BACKWARD (away from sensor)");
+        break;
+        
+      case GES_CLOCKWISE:
+        Serial.print("Gesture detected: CLOCKWISE ↻ - ");
+        turnAllLightsOn();
+        delay(500); // Prevent multiple triggers
+        break;
+        
+      case GES_ANTICLOCKWISE:
+        Serial.println("Gesture detected: ANTICLOCKWISE ↺");
+        break;
+        
+      case GES_WAVE:
+        Serial.print("Gesture detected: WAVE 👋 - ");
+        turnAllLightsOff();
+        delay(500); // Prevent multiple triggers
+        break;
+        
+      default:
+        Serial.print("Unknown gesture detected (code: ");
+        Serial.print(gesture);
+        Serial.println(")");
+        break;
+    }
+  }
+  
+  // Small delay to prevent overwhelming the sensor
+  delay(50);
+}
