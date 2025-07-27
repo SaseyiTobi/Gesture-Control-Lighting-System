@@ -2,6 +2,13 @@
 
 A simple yet effective IoT project that allows users to control home lighting using hand gestures, captured via a webcam. This project was developed as part of my final year coursework at Ajayi Crowther University.
 
+## 📸 Project Showcase
+
+Here are some pictures of the completed project, from the circuit construction to the final working system.
+
+### Final Assembled Project
+*This image shows the complete setup with the lamp, sensor, and microcontroller.*
+![Final project setup](images/IMG-20250727-WA0006.jpg)
 
 
 ---
